@@ -3,8 +3,10 @@ __pycache__/
 .venv/
 .env
 data/audio/
+data/derived_cycles/
 data/labels.csv
 models/*.pt
 models/*.pth
 reports/*.png
 reports/*.json
+.streamlit/secrets.toml
