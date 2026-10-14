@@ -21,7 +21,7 @@ This creates `data/derived_cycles/` and `data/labels.csv`. Labels (`normal`, `cr
 ## 2. Setup (Windows PowerShell)
 Python 3.12 is a conservative option for ML package compatibility. The project includes a virtual environment only on your computer, not in Git.
 ```powershell
-cd D:\Jarvis\RuralStethoAI
+cd .\stetho
 uv venv --python 3.12 .venv
 uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 ```
