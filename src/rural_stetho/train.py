@@ -204,7 +204,7 @@ def main():
         if val_score > best_score:
             best_score = float(val_score)
             best_thresholds = thresholds
-            torch.save({
+            checkpoint_payload = {
                 "state_dict": model.state_dict(),
                 "output_type": "multi_label_events",
                 "labels": PATTERNS,
@@ -215,7 +215,11 @@ def main():
                 "descriptor_std": descriptor_std.cpu(),
                 "best_validation_balanced_accuracy": best_score,
                 "seed": args.seed,
-            }, output)
+            }
+            # Atomic replacement prevents the live app reading a half-written checkpoint.
+            temporary_output = output.with_suffix(output.suffix + ".tmp")
+            torch.save(checkpoint_payload, temporary_output)
+            temporary_output.replace(output)
 
     checkpoint = torch.load(output, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["state_dict"])
@@ -229,7 +233,7 @@ def main():
     predicted_events = test_probabilities >= np.asarray(checkpoint["thresholds"]).reshape(1, 2)
     event_report = {}
     for j, event in enumerate(EVENTS):
-        precision, recall, f1, support = precision_recall_fscore_support(
+        precision, recall, f1, _ = precision_recall_fscore_support(
             truth_events[:, j], predicted_events[:, j], average="binary", zero_division=0
         )
         event_report[event] = {
@@ -238,7 +242,7 @@ def main():
             "precision": float(precision),
             "recall": float(recall),
             "f1": float(f1),
-            "positive_support": int(support),
+            "positive_support": int(truth_events[:, j].sum()),
             "negative_support": int((truth_events[:, j] == 0).sum()),
         }
 
