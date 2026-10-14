@@ -32,15 +32,34 @@ if source is not None:
             mel,desc=features(y); ck=torch.load(checkpoint,map_location='cpu',weights_only=True)
             if 'descriptor_mean' in ck and 'descriptor_std' in ck:
                 desc=(desc-ck['descriptor_mean'].cpu().numpy())/ck['descriptor_std'].cpu().numpy().clip(1e-6)
-            model=DualViewRespiratoryNet(len(ck['labels']),ck.get('n_descriptors',36)); model.load_state_dict(ck['state_dict']); model.eval()
-            with torch.no_grad(): probs=torch.softmax(model(torch.from_numpy(mel).unsqueeze(0),torch.from_numpy(desc).unsqueeze(0)),dim=1)[0]
-            conf,idx=probs.max(0); entropy=float(-(probs*torch.log(probs+1e-8)).sum())
-            st.subheader('Research sound-pattern scores'); st.bar_chart({label:float(probs[i]) for i,label in enumerate(ck['labels'])})
-            if float(conf)<.60 or entropy>.90:
-                st.warning('REVIEW REQUIRED — uncertain output; do not treat as a negative screen.')
+            model=DualViewRespiratoryNet(2 if ck.get('output_type')=='multi_label_events' else len(ck['labels']),ck.get('n_descriptors',36)); model.load_state_dict(ck['state_dict']); model.eval()
+            with torch.inference_mode():
+                logits=model(torch.from_numpy(mel).unsqueeze(0),torch.from_numpy(desc).unsqueeze(0))[0]
+            st.subheader('Research sound-pattern scores')
+            if ck.get('output_type')=='multi_label_events':
+                event_probs=torch.sigmoid(logits)
+                event_names=ck.get('event_labels',['crackle','wheeze'])
+                thresholds=ck.get('thresholds',[0.5,0.5])
+                st.bar_chart({label:float(event_probs[i]) for i,label in enumerate(event_names)})
+                decisions=[bool(float(event_probs[i])>=float(thresholds[i])) for i in range(2)]
+                pattern='both' if all(decisions) else 'crackle' if decisions[0] else 'wheeze' if decisions[1] else 'normal'
+                near_threshold=any(abs(float(event_probs[i])-float(thresholds[i]))<0.08 for i in range(2))
+                st.write('Independent event scores (uncalibrated):')
+                st.write({event_names[i]:{'score':round(float(event_probs[i]),3),'research_threshold':float(thresholds[i])} for i in range(2)})
+                if near_threshold:
+                    st.warning('REVIEW REQUIRED — at least one sound-event score is near its research threshold. Do not treat this as a negative screen.')
+                else:
+                    st.info(f'Predicted annotated sound pattern: {pattern}. This is not a disease diagnosis or a clinically validated screening result.')
+                st.caption('Thresholds were selected on validation data for this research run and are not medically calibrated.')
             else:
-                st.info(f'Research sound-pattern output: {ck["labels"][int(idx)]} (uncalibrated score {float(conf):.1%}); not a disease diagnosis.')
-            st.caption('Confidence thresholds are placeholders, not clinically calibrated thresholds.')
+                probs=torch.softmax(logits,dim=0)
+                conf,idx=probs.max(0); entropy=float(-(probs*torch.log(probs+1e-8)).sum())
+                st.bar_chart({label:float(probs[i]) for i,label in enumerate(ck['labels'])})
+                if float(conf)<.60 or entropy>.90:
+                    st.warning('REVIEW REQUIRED — uncertain output; do not treat as a negative screen.')
+                else:
+                    st.info(f'Research sound-pattern output: {ck["labels"][int(idx)]} (uncalibrated score {float(conf):.1%}); not a disease diagnosis.')
+                st.caption('Confidence thresholds are placeholders, not clinically calibrated thresholds.')
     except Exception as e:
         st.error(f'Audio processing failed: {e}')
     finally:

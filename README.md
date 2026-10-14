@@ -4,7 +4,7 @@ AI-powered respiratory-sound research prototype for rural screening. This is not
 
 ## What is innovative?
 - **Audio-quality gate:** rejects silence, clipped, too-short, and very quiet recordings before inference.
-- **Dual-view neural model:** a CNN learns time-frequency patterns from log-Mel spectrograms; a second branch learns acoustic descriptors (MFCC summaries, RMS, zero-crossing rate, spectral centroid, bandwidth, and rolloff). The representations are fused for sound-pattern classification.
+- **Dual-view multi-label neural model:** a CNN learns time-frequency patterns from log-Mel spectrograms; a second branch learns acoustic descriptors (MFCC summaries, RMS, zero-crossing rate, spectral centroid, bandwidth, and rolloff). Its two independent outputs estimate annotated crackle and wheeze events, allowing both to appear together rather than forcing an exclusive class. Descriptor scaling is fitted on training patients only.
 - **Uncertainty-aware abstention:** low-confidence/high-entropy results return `REVIEW REQUIRED` rather than forcing a label. The threshold is a demo placeholder until calibrated on independent clinical data.
 - **Patient-group evaluation:** train, validation, and held-out test partitions are separated by patient. The test partition is not used to choose model checkpoints.
 - **Rural-ready direction:** supports browser audio recording or WAV upload, local inference after setup, and temporary audio deletion after processing.
