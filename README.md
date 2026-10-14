@@ -27,6 +27,15 @@ uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 ```
 If `uv` is unavailable, install Python 3.12 and use `python -m venv .venv`, activate it, then run `python -m pip install -r requirements.txt`.
 
+## Windows quick-start scripts
+From File Explorer, double-click these scripts in order:
+1. `setup_windows.bat` — creates the Python 3.12 virtual environment and installs dependencies.
+2. `prepare_dataset.bat` — creates cycle audio clips and `data/labels.csv` from `data/ICBHI_final_database`.
+3. `train_model.bat` — trains the model and writes local weights and evaluation metrics.
+4. `run_app.bat` — launches the Streamlit interface.
+
+The dataset is deliberately not included in Git. Review ICBHI terms and place its locally obtained WAV/TXT files in the expected folder first.
+
 ## 3. Train and evaluate
 ```powershell
 $env:PYTHONPATH = 'src'
