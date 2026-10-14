@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import tempfile
 import streamlit as st
 import torch
 ROOT=Path(__file__).parent; sys.path.insert(0,str(ROOT/'src'))
@@ -16,8 +17,11 @@ upload=st.file_uploader('Or upload a WAV recording',type=['wav'])
 source=recording if recording is not None else upload
 checkpoint=ROOT/'models'/'best.pt'
 if source is not None:
-    tmp=ROOT/'data'/'_temporary_upload.wav'; tmp.parent.mkdir(exist_ok=True); tmp.write_bytes(source.getvalue())
+    tmp=None
     try:
+        with tempfile.NamedTemporaryFile(prefix='rural_stetho_',suffix='.wav',delete=False) as handle:
+            handle.write(source.getvalue())
+            tmp=Path(handle.name)
         y=load_audio(str(tmp)); ok,reasons,duration=quality_check(y)
         st.write({'duration_seconds':round(duration,2),'quality_gate':'PASS' if ok else 'REJECT'})
         if not ok:
@@ -40,7 +44,8 @@ if source is not None:
     except Exception as e:
         st.error(f'Audio processing failed: {e}')
     finally:
-        tmp.unlink(missing_ok=True)
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
 report_path=ROOT/'reports'/'evaluation.json'
 if report_path.exists():
     import json
