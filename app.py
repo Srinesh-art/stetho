@@ -26,6 +26,8 @@ if source is not None:
             st.info('Audio quality passed, but no trained model is present. No prediction has been generated. Prepare authorized labelled data and train first.')
         else:
             mel,desc=features(y); ck=torch.load(checkpoint,map_location='cpu',weights_only=True)
+            if 'descriptor_mean' in ck and 'descriptor_std' in ck:
+                desc=(desc-ck['descriptor_mean'].cpu().numpy())/ck['descriptor_std'].cpu().numpy().clip(1e-6)
             model=DualViewRespiratoryNet(len(ck['labels']),ck.get('n_descriptors',36)); model.load_state_dict(ck['state_dict']); model.eval()
             with torch.no_grad(): probs=torch.softmax(model(torch.from_numpy(mel).unsqueeze(0),torch.from_numpy(desc).unsqueeze(0)),dim=1)[0]
             conf,idx=probs.max(0); entropy=float(-(probs*torch.log(probs+1e-8)).sum())
@@ -39,6 +41,17 @@ if source is not None:
         st.error(f'Audio processing failed: {e}')
     finally:
         tmp.unlink(missing_ok=True)
+report_path=ROOT/'reports'/'evaluation.json'
+if report_path.exists():
+    import json
+    report=json.loads(report_path.read_text(encoding='utf-8'))
+    st.subheader('Held-out research evaluation')
+    c1,c2,c3=st.columns(3)
+    c1.metric('Test balanced accuracy', f"{report['test_balanced_accuracy']:.1%}")
+    c2.metric('Test macro F1', f"{report['test_macro_f1']:.1%}")
+    c3.metric('Test cycles', str(report['recordings']['test']))
+    st.caption('Research metrics only; not clinical validation.')
+    st.json(report['test_classification_report'])
 st.subheader('Innovation')
 st.markdown('- Quality gate rejects silence, clipped, too-short and very quiet recordings.\n- Dual-view neural network combines log-Mel CNN features and acoustic descriptors.\n- Uncertainty-aware abstention prompts human review.\n- Local inference after setup; temporary audio is removed after processing.')
 st.caption('Clinical use requires external prospective validation, calibration, bias analysis, privacy/security and regulatory review. Never use this demo to make treatment decisions.')

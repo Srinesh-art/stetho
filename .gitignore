@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .env
 data/audio/
+data/ICBHI_final_database/
 data/derived_cycles/
 data/**/*.wav
 data/_temporary_upload.wav

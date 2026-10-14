@@ -45,9 +45,22 @@ def main():
     print(f'Recordings: total={len(frame)} train={len(train_df)} validation={len(val_df)} test={len(test_df)}')
     print(f'Patients: train={len(train_patients)} validation={len(val_patients)} test={len(test_patients)}; labels={labels}')
     device='cuda' if torch.cuda.is_available() else 'cpu'
-    train_loader=DataLoader(RespiratoryDataset(train_df,root,labels),batch_size=args.batch_size,shuffle=True)
-    val_loader=DataLoader(RespiratoryDataset(val_df,root,labels),batch_size=args.batch_size,shuffle=False)
-    test_loader=DataLoader(RespiratoryDataset(test_df,root,labels),batch_size=args.batch_size,shuffle=False)
+    train_dataset=RespiratoryDataset(train_df,root,labels)
+    # Fit descriptor scaling on training patients only, then reuse it unchanged.
+    print('Preparing training features and fitting descriptor scaler...')
+    for i in range(len(train_dataset)):
+        train_dataset[i]
+    descriptor_matrix=torch.stack([pair[1] for pair in train_dataset.cache.values()])
+    descriptor_mean=descriptor_matrix.mean(dim=0)
+    descriptor_std=descriptor_matrix.std(dim=0,unbiased=False).clamp_min(1e-6)
+    train_dataset.set_descriptor_scaler(descriptor_mean,descriptor_std)
+    val_dataset=RespiratoryDataset(val_df,root,labels)
+    test_dataset=RespiratoryDataset(test_df,root,labels)
+    val_dataset.set_descriptor_scaler(descriptor_mean,descriptor_std)
+    test_dataset.set_descriptor_scaler(descriptor_mean,descriptor_std)
+    train_loader=DataLoader(train_dataset,batch_size=args.batch_size,shuffle=True)
+    val_loader=DataLoader(val_dataset,batch_size=args.batch_size,shuffle=False)
+    test_loader=DataLoader(test_dataset,batch_size=args.batch_size,shuffle=False)
     model=DualViewRespiratoryNet(len(labels)).to(device)
     counts=train_df.label.astype(str).value_counts()
     weights=torch.tensor([len(train_df)/(len(labels)*max(1,int(counts.get(label,0)))) for label in labels],dtype=torch.float32,device=device)
@@ -66,7 +79,7 @@ def main():
         print(f'Epoch {epoch+1}/{args.epochs} loss={np.mean(losses):.4f} validation_balanced_accuracy={val_score:.4f}')
         if val_score>best:
             best=val_score
-            torch.save({'state_dict':model.state_dict(),'labels':labels,'n_descriptors':36,'best_validation_balanced_accuracy':best},output)
+            torch.save({'state_dict':model.state_dict(),'labels':labels,'n_descriptors':36,'descriptor_mean':descriptor_mean.cpu(),'descriptor_std':descriptor_std.cpu(),'best_validation_balanced_accuracy':best},output)
     checkpoint=torch.load(output,map_location=device,weights_only=True)
     model.load_state_dict(checkpoint['state_dict'])
     # Test set is evaluated once after model selection; never used to choose epochs.
