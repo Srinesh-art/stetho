@@ -1,15 +1,28 @@
+# Python
+.venv/
 __pycache__/
 *.py[cod]
-.venv/
+.pytest_cache/
+
+# Secrets and local data
 .env
-data/audio/
-data/ICBHI_final_database/
-data/derived_cycles/
-data/**/*.wav
-data/_temporary_upload.wav
+data/raw/**
+data/processed/**
+data/derived_cycles/**
 data/labels.csv
-models/*.pt
-models/*.pth
-reports/*.png
+data/*_labels.csv
+*.wav
+*.mp3
+*.flac
+archive.zip
+
+# Research outputs and neural checkpoints
 reports/*.json
-.streamlit/secrets.toml
+reports/*.npz
+models/*.pt
+models/**/*.pt
+models/**/*.json
+
+# Keep the final serving model available for deployment
+models/*.joblib
+!models/binary_sound_classifier.joblib

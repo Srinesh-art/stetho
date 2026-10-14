@@ -1,57 +1,41 @@
-# RuralStethoAI
+# StethoSense
 
-AI-powered respiratory-sound research prototype for rural screening. This is not a medical device and must not be used to diagnose or rule out pneumonia, asthma, or TB.
+StethoSense is a local-first respiratory audio research web app. It accepts a browser recording or WAV upload and returns a cautious **normal-like** or **abnormal-like sound-pattern indication** using the final binary sound classifier.
 
-## What is innovative?
-- **Audio-quality gate:** rejects silence, clipped, too-short, and very quiet recordings before inference.
-- **Dual-view multi-label neural model:** a CNN learns time-frequency patterns from log-Mel spectrograms; a second branch learns acoustic descriptors (MFCC summaries, RMS, zero-crossing rate, spectral centroid, bandwidth, and rolloff). Its two independent outputs estimate annotated crackle and wheeze events, allowing both to appear together rather than forcing an exclusive class. Descriptor scaling is fitted on training patients only.
-- **Uncertainty-aware abstention:** low-confidence/high-entropy results return `REVIEW REQUIRED` rather than forcing a label. The threshold is a demo placeholder until calibrated on independent clinical data.
-- **Patient-group evaluation:** train, validation, and held-out test partitions are separated by patient. The test partition is not used to choose model checkpoints.
-- **Rural-ready direction:** supports browser audio recording or WAV upload, local inference after setup, and temporary audio deletion after processing.
+**Not a medical device.** This tool does not diagnose or rule out asthma, pneumonia, tuberculosis, or any other condition. Do not use its output to make treatment decisions.
 
-## 1. Dataset
-Use the ICBHI 2017 Respiratory Sound Database only after reviewing its access and use terms: https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge . This project does not download, redistribute, or include recordings. Put your authorized local dataset files (WAV plus matching annotation TXT files) somewhere on disk.
+## Run locally
 
-Generate cycle-level sound-pattern labels:
+Requirements: Windows, Python 3.12, and the model file at `models/binary_sound_classifier.joblib`.
+
 ```powershell
-python prepare_icbhi.py --dataset-dir "D:\path\to\your\ICBHI\audio_and_txt_files"
-```
-This creates `data/derived_cycles/` and `data/labels.csv`. Labels (`normal`, `crackle`, `wheeze`, `both`) describe annotated sound events, not diseases. No patient audio is bundled. The Git ignore rules exclude local recordings, generated cycles, manifests, trained weights, and evaluation outputs.
-
-## 2. Setup (Windows PowerShell)
-Python 3.12 is a conservative option for ML package compatibility. The project includes a virtual environment only on your computer, not in Git.
-```powershell
-cd .\stetho
-uv venv --python 3.12 .venv
-uv pip install --python .venv\Scripts\python.exe -r requirements.txt
-```
-If `uv` is unavailable, install Python 3.12 and use `python -m venv .venv`, activate it, then run `python -m pip install -r requirements.txt`.
-
-## Windows quick-start scripts
-From File Explorer, double-click these scripts in order:
-1. `setup_windows.bat` — creates the Python 3.12 virtual environment and installs dependencies.
-2. `prepare_dataset.bat` — creates cycle audio clips and `data/labels.csv` from `data/ICBHI_final_database`.
-3. `train_model.bat` — trains the model and writes local weights and evaluation metrics.
-4. `run_app.bat` — launches the Streamlit interface.
-
-The dataset is deliberately not included in Git. Review ICBHI terms and place its locally obtained WAV/TXT files in the expected folder first.
-
-## 3. Train and evaluate
-```powershell
+cd D:\StethoSense
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 $env:PYTHONPATH = 'src'
-.\.venv\Scripts\python.exe -m rural_stetho.train --manifest data/labels.csv --output models/best.pt
-```
-The trainer writes `reports/evaluation.json`, including validation-based checkpoint selection, held-out test balanced accuracy, macro-F1, per-class metrics, and a confusion matrix. These are research metrics, not clinical validation. Inspect per-class sensitivity, class balance, and patient split; do not report accuracy alone.
-
-## 4. Launch the demo
-```powershell
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
-Record using a compatible connected audio input or upload a WAV file. An ordinary phone/laptop microphone is not clinically equivalent to a digital stethoscope. Without a trained checkpoint, the app performs only the audio-quality check and explicitly says that no prediction was generated.
 
-## Safety, limits, and privacy
-- Lung-sound patterns are not equivalent to pneumonia, asthma, or TB diagnoses.
-- TB cannot be reliably ruled in or out using lung sounds alone; follow established clinical screening and confirmatory pathways.
-- A negative or uncertain model output must never delay medical care.
-- Obtain consent, de-identify metadata, restrict access, and delete recordings when no longer needed.
-- Clinical use requires prospective external validation, calibration, bias analysis across devices/populations, privacy/security review, and regulatory review.
+Then open `http://localhost:8501`. The included `run_app.bat` launcher can also be used.
+
+## Deployment preparation
+
+The app is prepared for a Streamlit-compatible hosting platform, but **it has not been deployed**.
+
+- Entry point: `app.py`
+- Dependencies: `requirements.txt`
+- Required trained model artifact: `models/binary_sound_classifier.joblib`
+- Audio processing code: `src/rural_stetho/audio.py`
+
+Keep the trained model artifact available to the hosting build. The dataset, training scripts, research reports, and raw audio are not needed for serving predictions. Do not upload private or licensed audio data to a public repository. Check dataset terms before redistributing any source data.
+
+## Audio handling
+
+- Accepts WAV uploads or browser audio recordings.
+- Checks duration, silence, and clipping before inference.
+- Analyses a fixed-length audio segment using the trained binary sound-pattern model.
+- Deletes the temporary audio file after processing.
+- Does not maintain an account system, audio history, or user-facing evaluation dashboard.
+
+## Safety and limitations
+
+The output describes similarity to annotated sound patterns, not a disease diagnosis. Normal-like output does not rule out illness. The model has not been clinically validated, and its development evaluation is exploratory. It should not be used as a screening or treatment tool. Public/clinical use requires independent validation, calibration, device and population bias analysis, privacy/security review, and appropriate regulatory review. Seek qualified medical care for symptoms; urgent or worsening symptoms should not be assessed with this app.
