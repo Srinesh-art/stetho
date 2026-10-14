@@ -4,6 +4,8 @@ __pycache__/
 .env
 data/audio/
 data/derived_cycles/
+data/**/*.wav
+data/_temporary_upload.wav
 data/labels.csv
 models/*.pt
 models/*.pth
